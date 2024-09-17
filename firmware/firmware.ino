@@ -1,4 +1,5 @@
 
+
 int analogPins[] = { A0, A1, A2, A3, A4, A5 };
 int analogReadings[5];
 unsigned long delta;
@@ -13,13 +14,11 @@ void readAllAnalogPins() {
 
 void sendAnalogData() {
   for(int i=0; i<6; i++) {
-    Serial.write(analogReadings[i]);
+    Serial.write((byte*)&analogReadings[i], sizeof(analogReadings[i]));
   }
 
-  while () {
-  statements
-  }
-  Serial.write("\t");
+  
+  Serial.write("\n");
 }
 
 void setup() {
@@ -32,7 +31,7 @@ void loop() {
   delta = millis();
   readAllAnalogPins();
   sendAnalogData();
-
+  delay(1);
   delta = millis() - delta;
   //Serial.println(Serial.availableForWrite());
   //while (Serial.availableForWrite() < 7);
