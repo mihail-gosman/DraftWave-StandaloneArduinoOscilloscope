@@ -1,64 +1,51 @@
 int analogPins[] = { A0, A1, A2, A3, A4, A5 };
-int analogReadings[6];
-volatile bool sendDataFlag = false;  // Flag to indicate when to send data
-unsigned long delta = micros();
+int analogReadings[6];  
+volatile unsigned long delta;  // Mark as volatile since it is used in ISR
+volatile int data = 0;         // Mark as volatile to safely access in both ISR and loop
 
-
-void timerInit() {
-  // Set up Timer2
-  TCCR2A = 0;  // Clear Control Register A
-  TCCR2B = 0;  // Clear Control Register B
-
-  TCCR2B |= (1 << CS22) | (1 << CS21);  // Set prescaler to 64
-  TIMSK2 |= (1 << TOIE2);  // Enable Timer2 overflow interrupt
-  TCNT2 = 5;  // Preload the timer
-}
-
-
-void readAllAnalogPins() {
-  for (int i = 0; i < 6; i++) {
+void readAnalogValues() {
+  for(int i = 0; i < 6; i++) {
     analogReadings[i] = analogRead(analogPins[i]);
   }
 }
 
-
-void sendAnalogData() {
+void sendAnalogValues() {
   for (int i = 0; i < 6; i++) {
-    Serial.write(analogReadings[i]);
+    Serial.println(analogReadings[i]);
   }
- // Serial.println();  // Print a newline after sending data
 }
-
 
 ISR(TIMER2_OVF_vect) {
-  readAllAnalogPins();  // Read all analog pins
-  sendDataFlag = true;  // Set the flag to send data in the loop
-  TCNT2 = 5;  // Reset the timer preload value
-  
-  // Calculate delta time
-  delta = millis() - delta;
-  // Set delta for output in the main loop
+  delta = micros();         // Update delta
+  readAnalogValues();       // Read analog values
+  data = 1;                 // Set flag to send data in loop
+  TCNT2 = 6;                // Reset timer count
 }
 
+void timerInit() {
+  noInterrupts();           // Disable interrupts during timer setup
+  TCCR2A = 0;               // Clear Timer2 control registers
+  TCCR2B = 0;
+  TCCR2B |= (1 << CS22);    // Set prescaler to 64
+  TIMSK2 |= (1 << TOIE2);   // Enable Timer2 overflow interrupt
+  TCNT2 = 6;                // Load initial value for Timer2 counter
+  interrupts();             // Re-enable interrupts
+}
 
 void setup() {
-  Serial.begin(115200);  // Start serial communication at 115200 baud
-  timerInit();  // Initialize Timer2
+  Serial.begin(115200);     // Initialize Serial communication
+  for(int i = 0; i < 6; i++) {
+    pinMode(analogPins[i], INPUT);  // Set analog pins as inputs
+  }
+  delta = micros();         // Initialize delta before starting timer
+  timerInit();              // Initialize Timer2
 }
 
-
 void loop() {
-   if (sendDataFlag) {
-    sendAnalogData();  // Send data only when the flag is set
-    sendDataFlag = false;  // Reset the flag after sending data
-    
-    // Send delta time since last reading
-    Serial.print("Delta time: ");
-    Serial.println(delta);
-    
-    delta = millis();  // Reset delta timer
+  if(data) {                // Check if data flag is set
+    Serial.println("\nTime elapsed:");
+    Serial.println(delta);  // Print the time delta
+    sendAnalogValues();     // Send the analog values to Serial
+    data = 0;               // Clear the data flag
   }
-  while (Serial.availableForWrite()<=40) {
-  ;
-  };
 }
