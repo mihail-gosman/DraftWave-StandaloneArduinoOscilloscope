@@ -1,6 +1,6 @@
 int analogPins[] = { A0, A1, A2, A3, A4, A5 };
 int analogReadings[6];  
-volatile unsigned long delta;  // Mark as volatile since it is used in ISR
+volatile unsigned long delta, lastDelta;  // Mark as volatile since it is used in ISR
 volatile int data = 0;         // Mark as volatile to safely access in both ISR and loop
 
 void readAnalogValues() {
@@ -16,7 +16,9 @@ void sendAnalogValues() {
 }
 
 ISR(TIMER2_OVF_vect) {
+  lastDelta = micros() - delta;
   delta = micros();         // Update delta
+  
   readAnalogValues();       // Read analog values
   data = 1;                 // Set flag to send data in loop
   TCNT2 = 6;                // Reset timer count
@@ -44,7 +46,7 @@ void setup() {
 void loop() {
   if(data) {                // Check if data flag is set
     Serial.println("\nTime elapsed:");
-    Serial.println(delta);  // Print the time delta
+    Serial.println();  // Print the time delta
     sendAnalogValues();     // Send the analog values to Serial
     data = 0;               // Clear the data flag
   }
